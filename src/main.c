@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include "diag/Trace.h"
 #include "stm32f4xx.h"
+#include "delay.h"
 
 // ----------------------------------------------------------------------------
 //
@@ -42,23 +43,22 @@ main(int argc, char* argv[])
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_10;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Low_Speed;
 	GPIO_Init(GPIOF, &GPIO_InitStructure);
-	RCC->AHB1ENR |= 1 << 4;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4;
-	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
-	GPIO_Init(GPIOE, &GPIO_InitStructure);
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
+	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Low_Speed;
+	GPIO_Init(GPIOF, &GPIO_InitStructure);
+
+	GPIO_WriteBit(GPIOF, GPIO_Pin_10, 0);
+	GPIO_WriteBit(GPIOF, GPIO_Pin_9, 1);
   // At this stage the system clock should have already been configured
   // at high speed.
 
   // Infinite loop
   while (1)
     {
-	  if(GPIO_ReadInputDataBit(GPIOE, GPIO_Pin_4) == 0){
-	    GPIO_WriteBit(GPIOF, GPIO_Pin_10, 0);
-	  }
-	  else{
-	  	GPIO_WriteBit(GPIOF, GPIO_Pin_10, 1);
-	  }
+	  GPIOF->ODR ^= 3<<9;
+	  delay_ms(500);
     }
 }
 
