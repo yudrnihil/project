@@ -10,6 +10,7 @@
 #include "diag/Trace.h"
 #include "stm32f4xx.h"
 #include "delay.h"
+#include "lcd.h"
 
 // ----------------------------------------------------------------------------
 //
@@ -37,6 +38,9 @@ int
 main(int argc, char* argv[])
 {
 	SystemInit();
+	delay_init(168);
+	LCD_Init();
+	LCD_ShowString(30,40,200,16,16,"Hello World");
 	RCC->AHB1ENR |= 1 << 5;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
 	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
