@@ -11,6 +11,7 @@
 #include "stm32f4xx.h"
 #include "delay.h"
 #include "lcd.h"
+#include "dac.h"
 
 // ----------------------------------------------------------------------------
 //
@@ -41,6 +42,7 @@ main(int argc, char* argv[])
 	delay_init(168);
 	LCD_Init();
 	LCD_ShowString(30,40,200,16,16,"Hello World");
+	DAC1_Init();
 	RCC->AHB1ENR |= 1 << 5;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
 	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
