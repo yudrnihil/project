@@ -56,6 +56,15 @@ void CPADInit(){
 	ADC_Init(ADC3, &ADC_InitStructure);
 	ADC_Cmd(ADC3, ENABLE);
 	ADC_RegularChannelConfig(ADC3, ADC_Channel_9, 1, ADC_SampleTime_480Cycles);
+	//MUX
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
+	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Low_Speed;
+	GPIO_Init(GPIOF, &GPIO_InitStructure);
+	GPIO_WriteBit(GPIOF, GPIO_Pin_0, 0);
+	GPIO_WriteBit(GPIOF, GPIO_Pin_1, 0);
+	GPIO_WriteBit(GPIOF, GPIO_Pin_2, 0);
 }
 
 /**
@@ -84,7 +93,7 @@ void CPADCalibrate(){
 		while(!ADC_GetFlagStatus(ADC3, ADC_FLAG_EOC));
 		sum += ADC_GetConversionValue(ADC3);
 	}
-	CPAD_threshold = sum / 10 - 1000;
+	CPAD_threshold = sum / 10 - 2000;
 }
 /**
  * read touch pad value
@@ -113,6 +122,7 @@ uint16_t getCPADValue(){
 }
 int
 main(int argc, char* argv[])
+
 {
 	SystemInit();
 	delay_init(168);
