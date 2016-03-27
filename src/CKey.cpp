@@ -53,9 +53,10 @@ void CKey_init(){
 CKey::CKey(uint8_t id):
 		ADCChannel(CKey_ADCChannel[id]), GPIOPin(CKey_GPIOPin[id]), MUXChannel(CKey_MUXChannel[id]),
 		frequency(CKey_frequency[id]) {
-	threshold = 500;
+	threshold = 1500;
 	setMUX();
 	calibrate();
+	disabled = 0;
 }
 
 void CKey::setMUX(){
@@ -119,7 +120,16 @@ void CKey::setThreshold(uint16_t threshold) {
 }
 
 bool CKey::isPressed(){
-	return getValue() < vref - threshold;
+	if (disabled){
+		disabled--;
+		return true;
+	}
+	if (getValue() < vref - threshold){
+		disabled = 10;
+		return true;
+	}
+	return false;
+	//return getValue() < vref - threshold;
 }
 
 

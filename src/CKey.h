@@ -30,6 +30,7 @@ class CKey {
 		const uint16_t frequency;  //frequency of the note
 		uint16_t vref;             //average voltage when the key is not pressed
 		uint16_t threshold;        //threshold value to determine whether the key is pressed
+		uint16_t disabled;
 	public:
 		/**
 		 * constructor for CKey. Each key has an id 0~23. The constructor
