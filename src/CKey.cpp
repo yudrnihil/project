@@ -20,16 +20,13 @@ uint16_t CKey_ADCChannel[24] = {
 uint16_t CKey_GPIOPin[24] = {
 		GPIO_Pin_3, GPIO_Pin_3, GPIO_Pin_3, GPIO_Pin_3, GPIO_Pin_3, GPIO_Pin_3, GPIO_Pin_3, GPIO_Pin_3,
 		GPIO_Pin_4, GPIO_Pin_4, GPIO_Pin_4, GPIO_Pin_4, GPIO_Pin_4, GPIO_Pin_4, GPIO_Pin_4, GPIO_Pin_4,
-		GPIO_Pin_5, GPIO_Pin_5, GPIO_Pin_5, GPIO_Pin_5, GPIO_Pin_5, GPIO_Pin_5, GPIO_Pin_5, GPIO_Pin_5,
-};
+		GPIO_Pin_5, GPIO_Pin_5, GPIO_Pin_5, GPIO_Pin_5, GPIO_Pin_5, GPIO_Pin_5, GPIO_Pin_5, GPIO_Pin_5,};
 uint16_t CKey_MUXChannel[24] = {3, 0, 1, 2, 5, 7, 6, 4, 3, 0, 1, 2, 5, 7, 6, 4, 3, 0, 1, 2, 5, 7, 6, 4};
 uint16_t CKey_frequency[24] = {988, 932, 880, 831, 784, 740, 698, 659, 622, 587, 554, 523, 494, 466, 440, 415,
 		392, 370, 349, 330, 311, 294, 277, 262};
 
 void CKey_init(){
-	/**
-	 * Initialize ADC3
-	 */
+	//Initialize ADC3
 	ADC_CommonInitStructure.ADC_DMAAccessMode = ADC_DMAAccessMode_Disabled;
 	ADC_CommonInitStructure.ADC_Mode = ADC_Mode_Independent;
 	ADC_CommonInitStructure.ADC_Prescaler = ADC_Prescaler_Div4;
@@ -44,9 +41,7 @@ void CKey_init(){
 	ADC_InitStructure.ADC_Resolution = ADC_Resolution_12b;
 	ADC_Init(ADC3, &ADC_InitStructure);
 	ADC_Cmd(ADC3, ENABLE);
-	/**
-	 * Initialize PF0,1,2 for multiplexer
-	 */
+	//Initialize PF0,1,2 for multiplexer
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
 	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0 | GPIO_Pin_1 | GPIO_Pin_2;
@@ -56,9 +51,9 @@ void CKey_init(){
 
 
 CKey::CKey(uint8_t id):
-		ADCChannel(CKey_ADCChannel[id]), GPIOPin(CKey_GPIOPin[id]), MUXChannel(CKey_MUXChannel[24]),
+		ADCChannel(CKey_ADCChannel[id]), GPIOPin(CKey_GPIOPin[id]), MUXChannel(CKey_MUXChannel[id]),
 		frequency(CKey_frequency[id]) {
-	threshold = 1000;
+	threshold = 500;
 	setMUX();
 	calibrate();
 }
