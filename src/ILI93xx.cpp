@@ -1,6 +1,7 @@
 #include "lcd.h"
 #include "stdlib.h"
 #include "font.h" 
+#include "delay.h"
 
 //////////////////////////////////////////////////////////////////////////////////	 
 //本程序只供学习使用，未经作者许可，不得用于其它任何用途
@@ -87,7 +88,7 @@ _lcd_dev lcddev;
 //写寄存器函数
 //regval:寄存器值
 
-GPIO_InitTypeDef GPIO_InitStructure;
+static GPIO_InitTypeDef GPIO_InitStructure;
 
 void LCD_WR_REG(vu16 regval)
 {   
@@ -2673,7 +2674,7 @@ void LCD_Init(void)
 		LCD_SSD_BackLightSet(100);//背光设置为最亮
 	}		 
 	LCD_Display_Dir(0);		//默认为竖屏
-	GPIO_WriteBit(LCD_LED_Port, LCD_LED_Pin, 1);				//点亮背光
+	GPIO_WriteBit(LCD_LED_Port, LCD_LED_Pin, Bit_SET);				//点亮背光
 	LCD_Clear(WHITE);
 }  
 //清屏函数
@@ -2924,7 +2925,7 @@ void LCD_ShowxNum(u16 x,u16 y,u32 num,u8 len,u8 size,u8 mode)
 //width,height:区域大小  
 //size:字体大小
 //*p:字符串起始地址		  
-void LCD_ShowString(u16 x,u16 y,u16 width,u16 height,u8 size,u8 *p)
+void LCD_ShowString(u16 x,u16 y,u16 width,u16 height,u8 size,const char *p)
 {         
 	u8 x0=x;
 	width+=x;
