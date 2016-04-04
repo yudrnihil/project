@@ -12,7 +12,7 @@
 #include "delay.h"
 #include "lcd.h"
 #include "CKey.h"
-
+#include "SDCard.h"
 // ----------------------------------------------------------------------------
 //
 // Standalone STM32F4 empty sample (trace via DEBUG).
@@ -77,6 +77,20 @@ main(int argc, char* argv[])
 	GPIO_WriteBit(GPIOF, GPIO_Pin_10, Bit_RESET);
 	GPIO_WriteBit(GPIOF, GPIO_Pin_9, Bit_SET);
 
+	//SD Card init
+	u32 sd_size;
+	u8* buf = new u8[512];
+	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
+	while(SD_Init()){
+	}
+	LCD_ShowString(30,150,200,16,16,"SD Card OK    ");
+	LCD_ShowString(30,170,200,16,16,"SD Card Size:     MB");
+	LCD_ShowNum(30+13*8,170,SDCardInfo.CardCapacity>>20,5,16);//显示SD卡容量
+	if(SD_ReadDisk(buf,0,1)==0)	//读取0扇区的内容
+				{
+		for(sd_size=0;sd_size<512;sd_size++)LCD_ShowNum(30+40*(sd_size%20),190+sd_size/20*20,buf[sd_size],3,16);
+				}
+
   // At this stage the system clock should have already been configured
   // at high speed.
 
@@ -101,16 +115,18 @@ main(int argc, char* argv[])
 //	  else{
 //		  GPIO_WriteBit(GPIOF, GPIO_Pin_9, Bit_RESET);
 //	  }
-	  for (uint16_t i = 0; i < 24; i++){
-		  keys[i]->setMUX();
-		  delay_us(10);
-		  if(!keys[i]->isPressed()){
-			  LCD_Fill(30, 150 + i * 25, 200, 175 + i * 25, BLUE);
-		  }
-		  else{
-			  LCD_Fill(30, 150 + i * 25, 200, 175 + i * 25, RED);
-		  }
-	  }
+
+
+//	  for (uint16_t i = 0; i < 24; i++){
+//		  keys[i]->setMUX();
+//		  delay_us(10);
+//		  if(!keys[i]->isPressed()){
+//			  LCD_Fill(30, 150 + i * 25, 200, 175 + i * 25, BLUE);
+//		  }
+//		  else{
+//			  LCD_Fill(30, 150 + i * 25, 200, 175 + i * 25, RED);
+//		  }
+//	  }
     }
 }
 #pragma GCC diagnostic pop
