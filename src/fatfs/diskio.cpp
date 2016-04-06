@@ -184,3 +184,11 @@ DRESULT disk_ioctl (
 DWORD get_fattime(void){
 	return 0;
 }
+
+void* ff_memalloc(UINT size){
+	return new u8[size];
+}
+
+void ff_memfree(void* ptr){
+	delete [] (char*)ptr;
+}

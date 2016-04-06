@@ -7,7 +7,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include "diag/Trace.h"
 #include "stm32f4xx.h"
 #include "delay.h"
@@ -15,6 +14,7 @@
 #include "CKey.h"
 #include "SDCard.h"
 #include "fatfs/ff.h"
+
 // ----------------------------------------------------------------------------
 //
 // Standalone STM32F4 empty sample (trace via DEBUG).
@@ -65,29 +65,29 @@ u8 mf_scan_files(char* path)
 	FRESULT res;
 	FILINFO fno;
 	DIR dir;
-	u16 i;
+	u16 count = 0;;
     char *fn;   /* This function is assuming non-Unicode cfg. */
 #if _USE_LFN
- 	fileinfo.lfsize = _MAX_LFN * 2 + 1;
-	fileinfo.lfname = mymalloc(SRAMIN,fileinfo.lfsize);
+ 	fno.lfsize = _MAX_LFN * 2 + 1;
+	fno.lfname = new char[fno.lfsize];
 #endif
 
     res = f_opendir(&dir,(const TCHAR*)path); //打开一个目录
     if (res == FR_OK)
 	{
-    	i = strlen(path);
 		while(1)
 		{
 	        res = f_readdir(&dir, &fno);                   //读取目录下的一个文件
 	        if (res != FR_OK || fno.fname[0] == 0) break;  //错误了/到末尾了,退出
 	        //if (fileinfo.fname[0] == '.') continue;             //忽略上级目录
 #if _USE_LFN
-        	fn = *fileinfo.lfname ? fileinfo.lfname : fileinfo.fname;
+        	fn = *fno.lfname ? fno.lfname : fno.fname;
 #else
         	fn = fno.fname;
 #endif	                                              /* It is a file. */
-			LCD_ShowString(30, 250, 200, 16, 16, path);//打印路径
-			LCD_ShowString(30, 250, 250, 16, 16, fn);//打印文件名
+			LCD_ShowString(30, 250 + count*30, 200, 16, 16, path);//打印路径
+			LCD_ShowString(130, 250 + count*30, 200, 16, 16, fn);//打印文件名
+			count++;
 		}
     }
     f_closedir(&dir);
