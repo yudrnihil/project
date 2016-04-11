@@ -22,7 +22,7 @@ typedef unsigned short	WCHAR;
 
 /* These types MUST be 16-bit or 32-bit */
 typedef int				INT;
-typedef unsigned int	UINT;
+typedef uint32_t	UINT;
 
 /* These types MUST be 32-bit */
 typedef long			LONG;
