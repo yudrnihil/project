@@ -4,12 +4,21 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS += \
+../src/ILI93xx.c \
+../src/dac.c \
+../src/delay.c \
 ../src/main.c 
 
 OBJS += \
+./src/ILI93xx.o \
+./src/dac.o \
+./src/delay.o \
 ./src/main.o 
 
 C_DEPS += \
+./src/ILI93xx.d \
+./src/dac.d \
+./src/delay.d \
 ./src/main.d 
 
 
