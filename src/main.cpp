@@ -14,6 +14,7 @@
 #include "CKey.h"
 #include "SDCard.h"
 #include "fatfs/ff.h"
+#include "WAVPlayer.h"
 
 // ----------------------------------------------------------------------------
 //
@@ -100,6 +101,7 @@ main(int argc, char* argv[])
 {
 	//System init
 	SystemInit();
+	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
 	delay_init(168);
 	//LCD init
 	LCD_Init();
@@ -161,7 +163,7 @@ main(int argc, char* argv[])
 	LCD_ShowNum(30+8*14,170,total>>10,5,16);				//显示SD卡总容量 MB
 	LCD_ShowNum(30+8*14,190,free>>10,5,16);					//显示SD卡剩余容量 MB
 	mf_scan_files("0:");
-
+	wav_play_song("0:/fox.wav");
   // At this stage the system clock should have already been configured
   // at high speed.
 

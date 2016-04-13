@@ -7,6 +7,8 @@
 
 #ifndef WAVPLAYER_H_
 #define WAVPLAYER_H_
+#include "stm32f4xx.h"
+#include "fatfs/ff.h"
 //////////////////////////////////////////////////////////////////////////////////
 //本程序只供学习使用，未经作者许可，不得用于其它任何用途
 //ALIENTEK STM32F407开发板
@@ -25,7 +27,7 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-#define WAV_DAC_TX_DMA_BUFSIZE    8192		//定义WAV TX DMA 数组大小(播放192Kbps@24bit的时候,需要设置8192大才不会卡)
+#define WAV_DAC_TX_DMA_BUFSIZE    512		//定义WAV TX DMA 数组大小(播放192Kbps@24bit的时候,需要设置8192大才不会卡)
 
 //RIFF块
 typedef __attribute__((__packed__)) struct
@@ -101,7 +103,8 @@ typedef __attribute__((__packed__)) struct
 	//2个I2S解码的BUF
 //	u8 *i2sbuf1;
 //	u8 *i2sbuf2;
-	u8* dacbuf;
+	u8* dacbuf1;
+	u8* dacbuf2;
 	u8 *tbuf;				//零时数组,仅在24bit解码的时候需要用到
 	FIL *file;				//音频文件指针
 
@@ -109,10 +112,11 @@ typedef __attribute__((__packed__)) struct
 							//bit1:0,结束播放;1,开启播放
 }__audiodev;
 
-u8 wav_decode_init(u8* fname,__wavctrl* wavx);
+u8 wav_decode_init(char* fname,__wavctrl* wavx);
 u32 wav_buffill(u8 *buf,u16 size,u8 bits);
 void wav_i2s_dma_tx_callback(void);
-u8 wav_play_song(u8* fname);
+u8 wav_play_song(char* fname);
+void DAC_WAV_Init(u8* buf0, u8* buf1, u16 num);
 #endif
 
 
@@ -134,4 +138,4 @@ u8 wav_play_song(u8* fname);
 
 
 
-#endif /* WAVPLAYER_H_ */
+

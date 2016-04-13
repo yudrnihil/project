@@ -7,7 +7,8 @@
 
 #include "wavPlayer.h"
 #include "delay.h"
-#include "ff.h"
+#include "fatfs/ff.h"
+#include "stm32f4xx_it.h"
 //////////////////////////////////////////////////////////////////////////////////
 //本程序只供学习使用，未经作者许可，不得用于其它任何用途
 //ALIENTEK STM32F407开发板
@@ -25,9 +26,19 @@
 //2,最高可以支持到192K/24bit的WAV格式.
 //////////////////////////////////////////////////////////////////////////////////
 
+/**
+ * Assume 8bit mono channel
+ */
+
 __wavctrl wavctrl;		//WAV控制结构体
-vu8 wavtransferend=0;	//i2s传输完成标志
-vu8 wavwitchbuf=0;		//i2sbufx指示标志
+vu8 wavtransferend=0;	//dma transfer end
+vu8 wavdatabuf=0;		//dma which buf to use
+
+NVIC_InitTypeDef NVIC_InitStructure;
+TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
+DMA_InitTypeDef DMA_InitStructure;
+DAC_InitTypeDef DAC_InitStructure;
+GPIO_InitTypeDef GPIO_InitStructure;
 
 __audiodev audiodev;
 
@@ -35,7 +46,7 @@ __audiodev audiodev;
 //fname:文件路径+文件名
 //wavx:wav 信息存放结构体指针
 //返回值:0,成功;1,打开文件失败;2,非WAV文件;3,DATA区域未找到.
-u8 wav_decode_init(u8* fname,__wavctrl* wavx)
+u8 wav_decode_init(char* fname,__wavctrl* wavx)
 {
 	FIL*ftemp;
 	u8 *buf;
@@ -83,11 +94,23 @@ u8 wav_decode_init(u8* fname,__wavctrl* wavx)
 //					printf("wavx->bps:%d\r\n",wavx->bps);
 //					printf("wavx->datasize:%d\r\n",wavx->datasize);
 //					printf("wavx->datastart:%d\r\n",wavx->datastart);
+
+					TIM_SelectOutputTrigger(TIM6, TIM_TRGOSource_Update);
+
+					TIM_TimeBaseStructure.TIM_Period = 1000000/fmt->SampleRate - 1;
+					TIM_TimeBaseStructure.TIM_Prescaler = 84;
+					TIM_TimeBaseStructure.TIM_ClockDivision = 0;
+					TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
+					TIM_TimeBaseInit(TIM6, &TIM_TimeBaseStructure);
+					TIM_Cmd(TIM6, DISABLE);
+
+
 				}else res=3;//data区域未找到.
 			}else res=2;//非wav文件
 
 		}else res=1;//打开文件错误
 	}
+
 	f_close(ftemp);
 	//myfree(SRAMIN,ftemp);//释放内存
 	delete ftemp;
@@ -132,27 +155,27 @@ u32 wav_buffill(u8 *buf,u16 size,u8 bits)
 	return bread;
 }
 //WAV播放时,I2S DMA传输回调函数
-void wav_i2s_dma_tx_callback(void)
+void tx_callback(void)
 {
 	u16 i;
-	if(DMA1_Stream4->CR&(1<<19))
+	if(DMA1_Stream5->CR&(1<<19))
 	{
-		wavwitchbuf=0;
+		wavdatabuf=0;
 		if((audiodev.status&0X01)==0)
 		{
-			for(i=0;i<WAV_I2S_TX_DMA_BUFSIZE;i++)//暂停
+			for(i=0;i<WAV_DAC_TX_DMA_BUFSIZE;i++)//暂停
 			{
-				audiodev.i2sbuf1[i]=0;//填充0
+				audiodev.dacbuf1[i]=0;//填充0
 			}
 		}
 	}else
 	{
-		wavwitchbuf=1;
+		wavdatabuf=1;
 		if((audiodev.status&0X01)==0)
 		{
-			for(i=0;i<WAV_I2S_TX_DMA_BUFSIZE;i++)//暂停
+			for(i=0;i<WAV_DAC_TX_DMA_BUFSIZE;i++)//暂停
 			{
-				audiodev.i2sbuf2[i]=0;//填充0
+				audiodev.dacbuf2[i]=0;//填充0
 			}
 		}
 	}
@@ -174,99 +197,106 @@ void wav_get_curtime(FIL*fx,__wavctrl *wavx)
 //KEY0_PRES:下一曲
 //KEY1_PRES:上一曲
 //其他:错误
-u8 wav_play_song(u8* fname)
+u8 wav_play_song(char* fname)
 {
 	u8 key;
 	u8 t=0;
 	u8 res;
 	u32 fillnum;
-	audiodev.file=(FIL*)mymalloc(SRAMIN,sizeof(FIL));
-	audiodev.i2sbuf1=mymalloc(SRAMIN,WAV_I2S_TX_DMA_BUFSIZE);
-	audiodev.i2sbuf2=mymalloc(SRAMIN,WAV_I2S_TX_DMA_BUFSIZE);
-	audiodev.tbuf=mymalloc(SRAMIN,WAV_I2S_TX_DMA_BUFSIZE);
-	if(audiodev.file&&audiodev.i2sbuf1&&audiodev.i2sbuf2&&audiodev.tbuf)
+	audiodev.file=new FIL;
+	audiodev.dacbuf1 = new u8[512];
+	audiodev.dacbuf2 = new u8[512];
+	audiodev.tbuf = new u8[512];
+	DAC_WAV_Init(audiodev.dacbuf1, audiodev.dacbuf2, 512);
+	if(audiodev.file&&audiodev.dacbuf1&&audiodev.dacbuf2&&audiodev.tbuf)
 	{
 		res=wav_decode_init(fname,&wavctrl);//得到文件的信息
 		if(res==0)//解析文件成功
 		{
-			if(wavctrl.bps==16)
+			//if(wavctrl.bps==16)
+			if(wavctrl.bps == 8)
 			{
-				WM8978_I2S_Cfg(2,0);	//飞利浦标准,16位数据长度
-				I2S2_Init(I2S_Standard_Phillips,I2S_Mode_MasterTx,I2S_CPOL_Low,I2S_DataFormat_16bextended);		//飞利浦标准,主机发送,时钟低电平有效,16位扩展帧长度
-			}else if(wavctrl.bps==24)
-			{
-				WM8978_I2S_Cfg(2,2);	//飞利浦标准,24位数据长度
-				I2S2_Init(I2S_Standard_Phillips,I2S_Mode_MasterTx,I2S_CPOL_Low,I2S_DataFormat_24b);		//飞利浦标准,主机发送,时钟低电平有效,24位扩展帧长度
-			}
-			I2S2_SampleRate_Set(wavctrl.samplerate);//设置采样率
-			I2S2_TX_DMA_Init(audiodev.i2sbuf1,audiodev.i2sbuf2,WAV_I2S_TX_DMA_BUFSIZE/2); //配置TX DMA
-			i2s_tx_callback=wav_i2s_dma_tx_callback;			//回调函数指wav_i2s_dma_callback
-			audio_stop();
+				//WM8978_I2S_Cfg(2,0);	//飞利浦标准,16位数据长度
+				//I2S2_Init(I2S_Standard_Phillips,I2S_Mode_MasterTx,I2S_CPOL_Low,I2S_DataFormat_16bextended);		//飞利浦标准,主机发送,时钟低电平有效,16位扩展帧长度
+				TIM_Cmd(TIM6, ENABLE);
+//			}else if(wavctrl.bps==24)
+//			{
+//				WM8978_I2S_Cfg(2,2);	//飞利浦标准,24位数据长度
+//				I2S2_Init(I2S_Standard_Phillips,I2S_Mode_MasterTx,I2S_CPOL_Low,I2S_DataFormat_24b);		//飞利浦标准,主机发送,时钟低电平有效,24位扩展帧长度
+//			}
+			//I2S2_SampleRate_Set(wavctrl.samplerate);//设置采样率
+			//I2S2_TX_DMA_Init(audiodev.i2sbuf1,audiodev.i2sbuf2,WAV_I2S_TX_DMA_BUFSIZE/2); //配置TX DMA
+			//i2s_tx_callback=wav_i2s_dma_tx_callback;			//回调函数指wav_i2s_dma_callback
+			//audio_stop();
 			res=f_open(audiodev.file,(TCHAR*)fname,FA_READ);	//打开文件
 			if(res==0)
 			{
 				f_lseek(audiodev.file, wavctrl.datastart);		//跳过文件头
-				fillnum=wav_buffill(audiodev.i2sbuf1,WAV_I2S_TX_DMA_BUFSIZE,wavctrl.bps);
-				fillnum=wav_buffill(audiodev.i2sbuf2,WAV_I2S_TX_DMA_BUFSIZE,wavctrl.bps);
-				audio_start();
+				fillnum=wav_buffill(audiodev.dacbuf1,WAV_DAC_TX_DMA_BUFSIZE,wavctrl.bps);
+				fillnum=wav_buffill(audiodev.dacbuf2,WAV_DAC_TX_DMA_BUFSIZE,wavctrl.bps);
+				audiodev.status=3<<0;
 				while(res==0)
 				{
+//					while(DMA_GetFlagStatus(DMA1_Stream5, DMA_FLAG_TCIF5) == 0);
+//					tx_callback();
+//					DMA_ClearFlag(DMA1_Stream5, DMA_FLAG_TCIF5);
 					while(wavtransferend==0);//等待wav传输完成;
 					wavtransferend=0;
-					if(fillnum!=WAV_I2S_TX_DMA_BUFSIZE)//播放结束?
+					if(fillnum!=WAV_DAC_TX_DMA_BUFSIZE)//播放结束?
 					{
-						res=KEY0_PRES;
+						//res=KEY0_PRES;
 						break;
 					}
- 					if(wavwitchbuf)fillnum=wav_buffill(audiodev.i2sbuf2,WAV_I2S_TX_DMA_BUFSIZE,wavctrl.bps);//填充buf2
-					else fillnum=wav_buffill(audiodev.i2sbuf1,WAV_I2S_TX_DMA_BUFSIZE,wavctrl.bps);//填充buf1
+ 					if(wavdatabuf)fillnum=wav_buffill(audiodev.dacbuf2,WAV_DAC_TX_DMA_BUFSIZE,wavctrl.bps);//填充buf2
+					else fillnum=wav_buffill(audiodev.dacbuf1,WAV_DAC_TX_DMA_BUFSIZE,wavctrl.bps);//填充buf1
 					while(1)
 					{
-						key=KEY_Scan(0);
-						if(key==WKUP_PRES)//暂停
-						{
-							if(audiodev.status&0X01)audiodev.status&=~(1<<0);
-							else audiodev.status|=0X01;
-						}
-						if(key==KEY2_PRES||key==KEY0_PRES)//下一曲/上一曲
-						{
-							res=key;
-							break;
-						}
-						wav_get_curtime(audiodev.file,&wavctrl);//得到总时间和当前播放的时间
-						audio_msg_show(wavctrl.totsec,wavctrl.cursec,wavctrl.bitrate);
-						t++;
-						if(t==20)
-						{
-							t=0;
- 							LED0=!LED0;
-						}
+//						key=KEY_Scan(0);
+//						if(key==WKUP_PRES)//暂停
+//						{
+//							if(audiodev.status&0X01)audiodev.status&=~(1<<0);
+//							else audiodev.status|=0X01;
+//						}
+//						if(key==KEY2_PRES||key==KEY0_PRES)//下一曲/上一曲
+//						{
+//							res=key;
+//							break;
+//						}
+//						wav_get_curtime(audiodev.file,&wavctrl);//得到总时间和当前播放的时间
+//						audio_msg_show(wavctrl.totsec,wavctrl.cursec,wavctrl.bitrate);
+//						t++;
+//						if(t==20)
+//						{
+//							t=0;
+// 							LED0=!LED0;
+//						}
 						if((audiodev.status&0X01)==0)delay_ms(10);
 						else break;
 					}
 				}
-				audio_stop();
+				//audio_stop();
+				audiodev.status = 0;
+				DMA_DoubleBufferModeCmd(DMA1_Stream5, DISABLE);
 			}else res=0XFF;
 		}else res=0XFF;
 	}else res=0XFF;
-	myfree(SRAMIN,audiodev.tbuf);	//释放内存
-	myfree(SRAMIN,audiodev.i2sbuf1);//释放内存
-	myfree(SRAMIN,audiodev.i2sbuf2);//释放内存
-	myfree(SRAMIN,audiodev.file);	//释放内存
+//	myfree(SRAMIN,audiodev.tbuf);	//释放内存
+//	myfree(SRAMIN,audiodev.i2sbuf1);//释放内存
+//	myfree(SRAMIN,audiodev.i2sbuf2);//释放内存
+//	myfree(SRAMIN,audiodev.file);	//释放内存
+	delete [] audiodev.tbuf;
+	delete [] audiodev.dacbuf1;
+	delete [] audiodev.dacbuf2;
+	delete audiodev.file;
 	return res;
+	}
 }
 
-void DAC_WAV_Init(){
-	NVIC_InitTypeDef NVIC_InitStructure;
-	TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
-	DMA_InitTypeDef DMA_InitStructure;
-	DAC_InitTypeDef DAC_InitStructure;
-	GPIO_InitTypeDef GPIO_InitStructure;
+void DAC_WAV_Init(u8* buf0, u8* buf1, u16 num){
 
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_DMA1, ENABLE);
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM6 | RCC_APB1Periph_DAC, ENABLE);
-	DMA_DeInit(DMA1_Stream5);
 
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AN;
 	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
@@ -274,35 +304,65 @@ void DAC_WAV_Init(){
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Low_Speed;
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
-	DAC_InitStructure.DAC_Trigger = DAC_Trigger_T6_TRGO;
-	DAC_InitStructure.DAC_WaveGeneration = DAC_WaveGeneration_None;
-	DAC_InitStructure.DAC_OutputBuffer = DAC_OutputBuffer_Disable;
-	DAC_InitStructure.DAC_LFSRUnmask_TriangleAmplitude = DAC_TriangleAmplitude_4095;
-	DAC_Init(DAC_Channel_1, &DAC_InitStructure);
-	DAC_Cmd(DAC_Channel_1, ENABLE);
 	/**
 	 * Use TIM6 as DAC trigger
 	 */
-	TIM_TimeBaseStructure.TIM_Period = 22;
-	TIM_TimeBaseStructure.TIM_Prescaler = 0;
-	TIM_TimeBaseStructure.TIM_ClockDivision = 0;
-	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
-	TIM_TimeBaseInit(TIM6, &TIM_TimeBaseStructure);
-	TIM_Cmd(TIM6, ENABLE);
-
-	TIM_SelectOutputTrigger(TIM6, TIM_TRGOSource_Update);
+//	TIM_TimeBaseStructure.TIM_Period = 22;
+//	TIM_TimeBaseStructure.TIM_Prescaler = 0;
+//	TIM_TimeBaseStructure.TIM_ClockDivision = 0;
+//	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
+//	TIM_TimeBaseInit(TIM6, &TIM_TimeBaseStructure);
+//	TIM_Cmd(TIM6, DISABLE);
+//
+//	TIM_SelectOutputTrigger(TIM6, TIM_TRGOSource_Update);
 
 	//DMA Init
+	DMA_DeInit(DMA1_Stream5);
 	DMA_InitStructure.DMA_Channel = DMA_Channel_7;
-	DMA_InitStructure.DMA_PeripheralBaseAddr
+	DMA_InitStructure.DMA_PeripheralBaseAddr = (u32)&DAC->DHR8R1;
+	DMA_InitStructure.DMA_Memory0BaseAddr = (u32)buf0;
+	DMA_InitStructure.DMA_DIR = DMA_DIR_MemoryToPeripheral;
+	DMA_InitStructure.DMA_BufferSize = num;
+	DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
+	DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
+	DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
+	DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
+	DMA_InitStructure.DMA_Mode = DMA_Mode_Circular;
+	DMA_InitStructure.DMA_Priority = DMA_Priority_High;
+	DMA_InitStructure.DMA_FIFOMode = DMA_FIFOMode_Disable;
+	DMA_InitStructure.DMA_FIFOThreshold = DMA_FIFOThreshold_1QuarterFull;
+	DMA_InitStructure.DMA_MemoryBurst = DMA_MemoryBurst_Single;
+	DMA_InitStructure.DMA_PeripheralBurst = DMA_PeripheralBurst_Single;
+	DMA_Cmd(DMA1_Stream5, DISABLE);
+	while (DMA1_Stream5->CR & DMA_SxCR_EN);
+	DMA_Init(DMA1_Stream5, &DMA_InitStructure);
+
+
+	DMA_DoubleBufferModeConfig(DMA1_Stream5, (u32)buf1, DMA_Memory_0);
+	DMA_ITConfig(DMA1_Stream5, DMA_IT_TC, ENABLE);
+	DMA_DoubleBufferModeCmd(DMA1_Stream5, ENABLE);
+	DMA_Cmd(DMA1_Stream5, ENABLE);
+
+
+	NVIC_InitStructure.NVIC_IRQChannel = DMA1_Stream5_IRQn;
+    NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0x00;//抢占优先级0
+    NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0x00;//子优先级0
+    NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;//使能外部中断通道
+    NVIC_Init(&NVIC_InitStructure);
+
+	DAC_InitStructure.DAC_Trigger = DAC_Trigger_T6_TRGO;
+	DAC_InitStructure.DAC_WaveGeneration = DAC_WaveGeneration_None;
+	DAC_InitStructure.DAC_OutputBuffer = DAC_OutputBuffer_Disable;
+	DAC_InitStructure.DAC_LFSRUnmask_TriangleAmplitude = DAC_LFSRUnmask_Bit0;
+	DAC_Init(DAC_Channel_1, &DAC_InitStructure);
+	DAC_Cmd(DAC_Channel_1, ENABLE);
+	DAC_DMACmd(DAC_Channel_1, ENABLE);
 }
 
-
-
-
-
-
-
-
-
+void DMA1_Stream5_IRQHandler(void){
+	if(DMA_GetITStatus(DMA1_Stream5, DMA_IT_TCIF5) == SET){
+		DMA_ClearITPendingBit(DMA1_Stream5, DMA_IT_TCIF5);
+		tx_callback();
+	}
+}
 
