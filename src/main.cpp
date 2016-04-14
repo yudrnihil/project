@@ -163,7 +163,8 @@ main(int argc, char* argv[])
 	LCD_ShowNum(30+8*14,170,total>>10,5,16);				//显示SD卡总容量 MB
 	LCD_ShowNum(30+8*14,190,free>>10,5,16);					//显示SD卡剩余容量 MB
 	mf_scan_files("0:");
-	wav_play_song("0:/fox.wav");
+	//wav_play_song("0:/fox.wav");
+	wavController("0:");
   // At this stage the system clock should have already been configured
   // at high speed.
 
