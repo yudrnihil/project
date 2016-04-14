@@ -92,7 +92,7 @@ u8 wav_decode_init(char* fname,__wavctrl* wavx)
 	f_close(ftemp);
 	delete ftemp;
 	delete [] buf;
-	return 0;
+	return res;
 }
 
 //填充buf
@@ -102,32 +102,31 @@ u8 wav_decode_init(char* fname,__wavctrl* wavx)
 //返回值:读到的数据个数
 u32 wav_buffill(u8 *buf,u16 size,u8 bits)
 {
-	u16 readlen=0;
 	u32 bread;
 	u16 i;
 	u8 *p;
-	if(bits==24)//24bit音频,需要处理一下
-	{
-		readlen=(size/4)*3;							//此次要读取的字节数
-		f_read(audiodev.file,audiodev.tbuf,readlen,(UINT*)&bread);	//读取数据
-		p=audiodev.tbuf;
-		for(i=0;i<size;)
-		{
-			buf[i++]=p[1];
-			buf[i]=p[2];
-			i+=2;
-			buf[i++]=p[0];
-			p+=3;
-		}
-		bread=(bread*4)/3;		//填充后的大小.
-	}else
-	{
+//	if(bits==24)//24bit音频,需要处理一下
+//	{
+//		readlen=(size/4)*3;							//此次要读取的字节数
+//		f_read(audiodev.file,audiodev.tbuf,readlen,(UINT*)&bread);	//读取数据
+//		p=audiodev.tbuf;
+//		for(i=0;i<size;)
+//		{
+//			buf[i++]=p[1];
+//			buf[i]=p[2];
+//			i+=2;
+//			buf[i++]=p[0];
+//			p+=3;
+//		}
+//		bread=(bread*4)/3;		//填充后的大小.
+//	}else
+//	{
 		f_read(audiodev.file,buf,size,(UINT*)&bread);//16bit音频,直接读取数据
 		if(bread<size)//不够数据了,补充0
 		{
 			for(i=bread;i<size-bread;i++)buf[i]=0;
 		}
-	}
+//	}
 	return bread;
 }
 
@@ -141,22 +140,20 @@ void wav_get_curtime(FIL*fx,__wavctrl *wavx)
 	fpos=fx->fptr-wavx->datastart; 					//得到当前文件播放到的地方
 	wavx->cursec=fpos*wavx->totsec/wavx->datasize;	//当前播放到第多少秒了?
 }
-//播放某个WAV文件
-//fname:wav文件路径.
-//返回值:
-//KEY0_PRES:下一曲
-//KEY1_PRES:上一曲
-//其他:错误
+
+/**
+ * play a wav file
+ * @param fname path and name of the wav file
+ * @return 0 when finish playing
+ *         1,3 next song
+ *         0xff error
+ */
 u8 wav_play_song(char* fname)
 {
 	u8 key;
 	u8 t=0;
 	u8 res;
 	u32 fillnum;
-	audiodev.file=new FIL;
-	audiodev.dacbuf1 = new u8[512];
-	audiodev.dacbuf2 = new u8[512];
-	audiodev.tbuf = new u8[512];
 	if(audiodev.file&&audiodev.dacbuf1&&audiodev.dacbuf2&&audiodev.tbuf)
 	{
 		res=wav_decode_init(fname,&wavctrl);//得到文件的信息
@@ -164,8 +161,6 @@ u8 wav_play_song(char* fname)
 		{
 			if(wavctrl.bps == 8)
 			{
-				TIM_Cmd(TIM6, ENABLE);
-				DMA_Cmd(DMA1_Stream5, ENABLE);
 				res=f_open(audiodev.file,(TCHAR*)fname,FA_READ);	//打开文件
 				if(res==0)
 				{
@@ -173,6 +168,9 @@ u8 wav_play_song(char* fname)
 					fillnum=wav_buffill(audiodev.dacbuf1,WAV_DAC_TX_DMA_BUFSIZE,wavctrl.bps);
 					fillnum=wav_buffill(audiodev.dacbuf2,WAV_DAC_TX_DMA_BUFSIZE,wavctrl.bps);
 					audiodev.status=3<<0;
+
+					DMA_Cmd(DMA1_Stream5, ENABLE);
+					TIM_Cmd(TIM6, ENABLE);
 					while(res==0)
 					{
 						while(wavtransferend==0);//等待wav传输完成;
@@ -189,10 +187,17 @@ u8 wav_play_song(char* fname)
 							key=KEY_Scan();
 							if(key == 2)//暂停
 							{
-								if(audiodev.status&0X01)audiodev.status&=~(1<<0);
-								else audiodev.status|=0X01;
+								if(audiodev.status&0X01){
+									audiodev.status&=~(1<<0);
+									TIM_Cmd(TIM6, DISABLE);
+								}
+								else {
+									audiodev.status|=0X01;
+									TIM_Cmd(TIM6, ENABLE);
+								}
+
 							}
-							if(key == 0||key == 3)//下一曲/上一曲
+							if(key == 1 ||key == 3)//下一曲/上一曲
 							{
 								res=key;
 								break;
@@ -205,19 +210,19 @@ u8 wav_play_song(char* fname)
 //								t=0;
 //	 							LED0=!LED0;
 //							}
-							if((audiodev.status&0X01)==0)delay_ms(10);
+							if((audiodev.status&0X01)==0){
+								delay_ms(10);
+							}
 							else break;
 						}
 					}
 					audiodev.status = 0;
+					TIM_Cmd(TIM6, DISABLE);
 					DMA_Cmd(DMA1_Stream5, DISABLE);
+
 				}else res=0XFF; //err: cannot open file
 			}else res=0XFF; //err: wav file is not 8bit, not supported yet
 		}else res=0XFF; //err: cannot get file info
-		delete [] audiodev.tbuf;
-		delete [] audiodev.dacbuf1;
-		delete [] audiodev.dacbuf2;
-		delete audiodev.file;
 	}
 	else{
 		res = 0xff; //err: cannot allocate memory
@@ -225,6 +230,8 @@ u8 wav_play_song(char* fname)
 	return res;
 }
 
+//helper function: append path to file name
+//eg: b = "fox.wav", return value = "0:\fox.wav"
 char* append(char* b){
 	char* result = new char[_MAX_LFN * 2 + 1];
 	result[0] = '0';
@@ -245,6 +252,13 @@ void wavController(char* path){
 	DIR dir;
 	u8 wavStatus;
 	char *fn;
+
+	audiodev.file=new FIL;
+	audiodev.dacbuf1 = new u8[512];
+	audiodev.dacbuf2 = new u8[512];
+	audiodev.tbuf = new u8[512];
+	DAC_WAV_Init(audiodev.dacbuf1, audiodev.dacbuf2, 512);
+
 	fno.lfsize = _MAX_LFN * 2 + 1;
 	fno.lfname = new char[fno.lfsize];
 	res = f_opendir(&dir,(const TCHAR*)path);
@@ -255,7 +269,7 @@ void wavController(char* path){
 		}
 		fn = *fno.lfname ? fno.lfname : fno.fname;
 		//Init DAC, DMA, PA4
-		DAC_WAV_Init(audiodev.dacbuf1, audiodev.dacbuf2, 512);
+		//DAC_WAV_Init(audiodev.dacbuf1, audiodev.dacbuf2, 512);
 		while(1){
 			wavStatus = wav_play_song(append(fn));
 			if(wavStatus != 0){
@@ -270,6 +284,10 @@ void wavController(char* path){
 		}
 
 	}
+	delete [] audiodev.tbuf;
+	delete [] audiodev.dacbuf1;
+	delete [] audiodev.dacbuf2;
+	delete audiodev.file;
 }
 
 /**
@@ -344,27 +362,12 @@ void DAC_WAV_Init(u8* buf0, u8* buf1, u16 num){
 void DMA1_Stream5_IRQHandler(void){
 	if(DMA_GetITStatus(DMA1_Stream5, DMA_IT_TCIF5) == SET){
 		DMA_ClearITPendingBit(DMA1_Stream5, DMA_IT_TCIF5);
-		u16 i;
 		if(DMA1_Stream5->CR&(1<<19))
 		{
 			wavdatabuf=0;
-			if((audiodev.status&0X01)==0)
-			{
-				for(i=0;i<WAV_DAC_TX_DMA_BUFSIZE;i++)//暂停
-				{
-					audiodev.dacbuf1[i]=0;//填充0
-				}
-			}
 		}else
 		{
 			wavdatabuf=1;
-			if((audiodev.status&0X01)==0)
-			{
-				for(i=0;i<WAV_DAC_TX_DMA_BUFSIZE;i++)//暂停
-				{
-					audiodev.dacbuf2[i]=0;//填充0
-				}
-			}
 		}
 		wavtransferend=1;
 	}

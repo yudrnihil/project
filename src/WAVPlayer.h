@@ -9,7 +9,7 @@
 #define WAVPLAYER_H_
 #include "stm32f4xx.h"
 #include "fatfs/ff.h"
-
+#include "key.h"
 //size of DAC buffer
 #define WAV_DAC_TX_DMA_BUFSIZE    512
 

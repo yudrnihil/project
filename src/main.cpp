@@ -103,6 +103,8 @@ main(int argc, char* argv[])
 	SystemInit();
 	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
 	delay_init(168);
+	//key init
+	KEY_Init();
 	//LCD init
 	LCD_Init();
 	LCD_ShowString(30,40,200,16,16,"Hello World");

@@ -32,16 +32,21 @@ void KEY_Init(void)
  */
 u8 KEY_Scan(void)
 {	 
-	if(GPIO_ReadInputDataBit(GPIOE, GPIO_Pin_4) == 0){
-		return 1;
-	}
 	if(GPIO_ReadInputDataBit(GPIOE, GPIO_Pin_3) == 0){
+		while(GPIO_ReadInputDataBit(GPIOE, GPIO_Pin_3) == 0);
 		return 2;
 	}
+	if(GPIO_ReadInputDataBit(GPIOE, GPIO_Pin_4) == 0){
+		while(GPIO_ReadInputDataBit(GPIOE, GPIO_Pin_4) == 0);
+		return 1;
+	}
+
 	if(GPIO_ReadInputDataBit(GPIOE, GPIO_Pin_2) == 0){
+		while(GPIO_ReadInputDataBit(GPIOE, GPIO_Pin_2) == 0);
 		return 3;
 	}
 	if(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_0) != 0){
+		while(GPIO_ReadInputDataBit(GPIOA, GPIO_Pin_0) != 0);
 		return 4;
 	}
 	return 0;
