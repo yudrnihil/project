@@ -104,7 +104,7 @@ u32 wav_buffill(u8 *buf,u16 size,u8 bits)
 {
 	u32 bread;
 	u16 i;
-	u8 *p;
+	//u8 *p;
 //	if(bits==24)//24bit音频,需要处理一下
 //	{
 //		readlen=(size/4)*3;							//此次要读取的字节数
@@ -129,6 +129,20 @@ u32 wav_buffill(u8 *buf,u16 size,u8 bits)
 //	}
 	return bread;
 }
+
+//u32 wav_buffill(u8* bufCh0, u8* bufCh1, u16 size, u8 bits){
+//	u32 bread;
+//	u16 i;
+//	u8 *p;
+//
+//	f_read(audiodev.file, audiodev.tbuf, size * 2, (UINT*)&bread);
+//	p = audiodev.tbuf;
+//	for(i = 0; i < size * 2 ; i += 2){
+//		bufCh0[i] = p[i];
+//		bufCh1[i] = p[i+1];
+//	}
+//	return bread;
+//}
 
 //得到当前播放时间
 //fx:文件指针
@@ -165,11 +179,22 @@ u8 wav_play_song(char* fname)
 				if(res==0)
 				{
 					f_lseek(audiodev.file, wavctrl.datastart);		//跳过文件头
-					fillnum=wav_buffill(audiodev.dacbuf1,WAV_DAC_TX_DMA_BUFSIZE,wavctrl.bps);
-					fillnum=wav_buffill(audiodev.dacbuf2,WAV_DAC_TX_DMA_BUFSIZE,wavctrl.bps);
-					audiodev.status=3<<0;
+//					if(wavctrl.nchannels == 1){
+						fillnum=wav_buffill(audiodev.dacbuf1,WAV_DAC_TX_DMA_BUFSIZE,wavctrl.bps);
+						fillnum=wav_buffill(audiodev.dacbuf2,WAV_DAC_TX_DMA_BUFSIZE,wavctrl.bps);
+						audiodev.status=3<<0;
 
-					DMA_Cmd(DMA1_Stream5, ENABLE);
+						DMA_Cmd(DMA1_Stream5, ENABLE);
+//					}
+//					else{
+//						fillnum=wav_buffill(audiodev.dacbuf1,audiodev.dacbuf3,WAV_DAC_TX_DMA_BUFSIZE,wavctrl.bps);
+//						fillnum=wav_buffill(audiodev.dacbuf2,audiodev.dacbuf4,WAV_DAC_TX_DMA_BUFSIZE,wavctrl.bps);
+//						fillnum = fillnum / 2;
+//						audiodev.status=3<<0;
+//
+//						DMA_Cmd(DMA1_Stream5, ENABLE);
+//						//DMA_Cmd(DMA1_Stream6, ENABLE);
+//					}
 					TIM_Cmd(TIM6, ENABLE);
 					while(res==0)
 					{
@@ -180,8 +205,15 @@ u8 wav_play_song(char* fname)
 							//res=KEY0_PRES;
 							break;
 						}
+//						if(wavctrl.nchannels == 1){
 						if(wavdatabuf)fillnum=wav_buffill(audiodev.dacbuf2,WAV_DAC_TX_DMA_BUFSIZE,wavctrl.bps);//填充buf2
 						else fillnum=wav_buffill(audiodev.dacbuf1,WAV_DAC_TX_DMA_BUFSIZE,wavctrl.bps);//填充buf1
+//						}
+//						else{
+//							if(wavdatabuf)fillnum=wav_buffill(audiodev.dacbuf2,audiodev.dacbuf4,WAV_DAC_TX_DMA_BUFSIZE,wavctrl.bps);//填充buf2
+//							else fillnum=wav_buffill(audiodev.dacbuf1,audiodev.dacbuf3,WAV_DAC_TX_DMA_BUFSIZE,wavctrl.bps);//填充buf1
+//							fillnum = fillnum / 2;
+//						}
 						while(1)
 						{
 							key=KEY_Scan();
@@ -219,6 +251,7 @@ u8 wav_play_song(char* fname)
 					audiodev.status = 0;
 					TIM_Cmd(TIM6, DISABLE);
 					DMA_Cmd(DMA1_Stream5, DISABLE);
+					DMA_Cmd(DMA1_Stream6, DISABLE);
 
 				}else res=0XFF; //err: cannot open file
 			}else res=0XFF; //err: wav file is not 8bit, not supported yet
@@ -256,8 +289,10 @@ void wavController(char* path){
 	audiodev.file=new FIL;
 	audiodev.dacbuf1 = new u8[512];
 	audiodev.dacbuf2 = new u8[512];
-	audiodev.tbuf = new u8[512];
-	DAC_WAV_Init(audiodev.dacbuf1, audiodev.dacbuf2, 512);
+	audiodev.dacbuf3 = new u8[512];
+	audiodev.dacbuf4 = new u8[512];
+	audiodev.tbuf = new u8[1024];
+	DAC_WAV_Init(audiodev.dacbuf1, audiodev.dacbuf2, audiodev.dacbuf3, audiodev.dacbuf4, 256);
 
 	fno.lfsize = _MAX_LFN * 2 + 1;
 	fno.lfname = new char[fno.lfsize];
@@ -287,6 +322,8 @@ void wavController(char* path){
 	delete [] audiodev.tbuf;
 	delete [] audiodev.dacbuf1;
 	delete [] audiodev.dacbuf2;
+	delete [] audiodev.dacbuf3;
+	delete [] audiodev.dacbuf4;
 	delete audiodev.file;
 }
 
@@ -313,14 +350,14 @@ void DAC_WAV_Init(u8* buf0, u8* buf1, u16 num){
 	//DMA Init
 	DMA_DeInit(DMA1_Stream5);
 	DMA_InitStructure.DMA_Channel = DMA_Channel_7;
-	DMA_InitStructure.DMA_PeripheralBaseAddr = (u32)&DAC->DHR8R1;
+	DMA_InitStructure.DMA_PeripheralBaseAddr = (u32)&DAC->DHR8RD;
 	DMA_InitStructure.DMA_Memory0BaseAddr = (u32)buf0;
 	DMA_InitStructure.DMA_DIR = DMA_DIR_MemoryToPeripheral;
 	DMA_InitStructure.DMA_BufferSize = num;
 	DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
 	DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
-	DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;
-	DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;
+	DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_HalfWord;
+	DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_HalfWord;
 	DMA_InitStructure.DMA_Mode = DMA_Mode_Circular;
 	DMA_InitStructure.DMA_Priority = DMA_Priority_High;
 	DMA_InitStructure.DMA_FIFOMode = DMA_FIFOMode_Disable;
@@ -335,7 +372,6 @@ void DAC_WAV_Init(u8* buf0, u8* buf1, u16 num){
 	DMA_DoubleBufferModeConfig(DMA1_Stream5, (u32)buf1, DMA_Memory_0);
 	DMA_ITConfig(DMA1_Stream5, DMA_IT_TC, ENABLE);
 	DMA_DoubleBufferModeCmd(DMA1_Stream5, ENABLE);
-	//DMA_Cmd(DMA1_Stream5, ENABLE);
 
 	//enable transfer complete interrupt
 	NVIC_InitStructure.NVIC_IRQChannel = DMA1_Stream5_IRQn;
@@ -352,6 +388,29 @@ void DAC_WAV_Init(u8* buf0, u8* buf1, u16 num){
 	DAC_Init(DAC_Channel_1, &DAC_InitStructure);
 	DAC_Cmd(DAC_Channel_1, ENABLE);
 	DAC_DMACmd(DAC_Channel_1, ENABLE);
+}
+
+void DAC_WAV_Init(u8* bufCh1_0, u8* bufCh1_1, u8* bufCh2_0, u8* bufCh2_1, u16 num){
+	//Channel 1 init
+	DAC_WAV_Init(bufCh1_0, bufCh1_1, num);
+
+	//Channel 2 init
+	//PA4 init
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AN;
+	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Low_Speed;
+	GPIO_Init(GPIOA, &GPIO_InitStructure);
+
+    //dac init
+	DAC_InitStructure.DAC_Trigger = DAC_Trigger_T6_TRGO;
+	DAC_InitStructure.DAC_WaveGeneration = DAC_WaveGeneration_None;
+	DAC_InitStructure.DAC_OutputBuffer = DAC_OutputBuffer_Disable;
+	DAC_InitStructure.DAC_LFSRUnmask_TriangleAmplitude = DAC_LFSRUnmask_Bit0;
+	DAC_Init(DAC_Channel_2, &DAC_InitStructure);
+	DAC_Cmd(DAC_Channel_2, ENABLE);
+	DAC_DMACmd(DAC_Channel_2, ENABLE);
 }
 
 /**

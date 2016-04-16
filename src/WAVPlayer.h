@@ -86,6 +86,8 @@ typedef __attribute__((__packed__)) struct
 {
 	u8* dacbuf1;
 	u8* dacbuf2;
+	u8* dacbuf3;
+	u8* dacbuf4;
 	u8 *tbuf;				//零时数组,仅在24bit解码的时候需要用到
 	FIL *file;				//音频文件指针
 	//0: stop, 3: play 2: pause
@@ -98,6 +100,7 @@ u32 wav_buffill(u8 *buf,u16 size,u8 bits);
 void wav_i2s_dma_tx_callback(void);
 u8 wav_play_song(char* fname);
 void DAC_WAV_Init(u8* buf0, u8* buf1, u16 num);
+void DAC_WAV_Init(u8* bufCh1_0, u8* bufCh1_1, u8* bufCh2_0, u8* bufCh2_1, u16 num);
 void wavController(char* path);
 #endif
 
