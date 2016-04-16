@@ -12,6 +12,11 @@
 #include "delay.h"
 #include "lcd.h"
 #include "CKey.h"
+#include "timer_interrupt.h"
+#include "system_stm32f4xx.h"
+#include "sound.h"
+#include "DAC.h"
+//#include "extern.h"
 
 // ----------------------------------------------------------------------------
 //
@@ -36,13 +41,14 @@
 static GPIO_InitTypeDef GPIO_InitStructure;
 CKey* keys[24];
 int i = 0;
+extern int flag[8]={0};
 
 int
 main(int argc, char* argv[])
-
 {
 	//System init
 	SystemInit();
+	NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
 	delay_init(168);
 	//LCD init
 	LCD_Init();
@@ -73,15 +79,48 @@ main(int argc, char* argv[])
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
 	GPIO_Init(GPIOE, &GPIO_InitStructure);
 
+	 DAC_Init();
+	 Buf_Init();
+     Timer_Init(30,70);
 
-	GPIO_WriteBit(GPIOF, GPIO_Pin_10, Bit_RESET);
-	GPIO_WriteBit(GPIOF, GPIO_Pin_9, Bit_SET);
+//
+//	GPIO_WriteBit(GPIOF, GPIO_Pin_10, Bit_RESET);
+//	GPIO_WriteBit(GPIOF, GPIO_Pin_9, Bit_SET);
+
 
   // At this stage the system clock should have already been configured
   // at high speed.
+     // Buf_Clear(8);
+    //  LCD_Fill(30, 150 + 3 * 25, 200, 175 + 3* 25, RED);
+      //Buf_Clear(1);
+
+
+//      Buf_Clear(4);
+
+//      Buf_Clear(4);
+//      delay_ms(400);
+//      Buf_Clear(6);
+//      delay_ms(400);
+//      Buf_Clear(7);
+//      delay_ms(400);
+//      Buf_Clear(7);
+//
+//      delay_ms(200);
+//      Buf_Clear(7);
+//      delay_ms(520);
+//      Buf_Clear(4);
+//      delay_ms(375);
+//      Buf_Clear(4);
+//      delay_ms(350);
+
+
+
+  //LCD_Fill(30, 150 + 3 * 25, 200, 175 + 3* 25, RED);
+
 
 
   // Infinite loop
+
   while (1)
     {
 	  //This part tests whether each key is functional.
@@ -101,17 +140,26 @@ main(int argc, char* argv[])
 //	  else{
 //		  GPIO_WriteBit(GPIOF, GPIO_Pin_9, Bit_RESET);
 //	  }
-	  for (uint16_t i = 0; i < 24; i++){
+
+	 for (uint16_t i = 0; i < 24; i++){
 		  keys[i]->setMUX();
 		  delay_us(10);
 		  if(!keys[i]->isPressed()){
-			  LCD_Fill(30, 150 + i * 25, 200, 175 + i * 25, BLUE);
+			//  LCD_Fill(30, 150 + i * 25, 200, 175 + i * 25, BLUE);
+			  flag[i]=0;
+
 		  }
 		  else{
-			  LCD_Fill(30, 150 + i * 25, 200, 175 + i * 25, RED);
+			 // LCD_Fill(30, 150 + i * 25, 200, 175 + i * 25, RED);
+			  if(flag[i] == 0 )
+			  {Buf_Clear(i);flag[i]=1;}
+
+
 		  }
 	  }
+
     }
+
 }
 #pragma GCC diagnostic pop
 
