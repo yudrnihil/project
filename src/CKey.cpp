@@ -24,6 +24,8 @@ uint16_t CKey_GPIOPin[24] = {
 uint16_t CKey_MUXChannel[24] = {3, 0, 1, 2, 5, 7, 6, 4, 3, 0, 1, 2, 5, 7, 6, 4, 3, 0, 1, 2, 5, 7, 6, 4};
 uint16_t CKey_frequency[24] = {988, 932, 880, 831, 784, 740, 698, 659, 622, 587, 554, 523, 494, 466, 440, 415,
 		392, 370, 349, 330, 311, 294, 277, 262};
+enum material{Cu, Al};
+uint8_t type[24] = {Al, Cu, Al, Cu, Al, Cu, Al, Al, Cu, Al, Cu, Al, Al, Cu, Al, Cu, Al, Cu, Al, Al, Cu, Al, Cu, Al};
 
 void CKey_init(){
 	//Initialize ADC3
@@ -53,7 +55,12 @@ void CKey_init(){
 CKey::CKey(uint8_t id):
 		ADCChannel(CKey_ADCChannel[id]), GPIOPin(CKey_GPIOPin[id]), MUXChannel(CKey_MUXChannel[id]),
 		frequency(CKey_frequency[id]) {
-	threshold = 1500;
+	if(type[id] == Al ){
+		threshold = 200;
+	}
+	else{
+		threshold = 800;
+	}
 	setMUX();
 	calibrate();
 	disabled = 0;
