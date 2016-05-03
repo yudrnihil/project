@@ -73,7 +73,7 @@ main(int argc, char* argv[])
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Low_Speed;
 	GPIO_Init(GPIOF, &GPIO_InitStructure);
-	//Button key1 init
+	//Button key1 initzbnnnnnnnb876
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3;
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
@@ -144,13 +144,19 @@ main(int argc, char* argv[])
 	 for (uint16_t i = 0; i < 24; i++){
 		  keys[i]->setMUX();
 		  delay_us(10);
-		  if(!keys[i]->isPressed()){
-			//  LCD_Fill(30, 150 + i * 25, 200, 175 + i * 25, BLUE);
+		  uint8_t value = keys[i]->isPressed();
+		  if(!value){
+			  LCD_Fill(30, 150 + i * 25, 200, 175 + i * 25, BLUE);
 			  flag[i]=0;
 
 		  }
 		  else{
-			 // LCD_Fill(30, 150 + i * 25, 200, 175 + i * 25, RED);
+			  if(value == 1){
+			  LCD_Fill(30, 150 + i * 25, 200, 175 + i * 25, RED);
+			  }
+			  if(value == 2){
+				  LCD_Fill(30, 150 + i * 25, 200, 175 + i * 25, BLACK);
+			  }
 			  if(flag[i] == 0 )
 			  {Buf_Clear(i);flag[i]=1;}
 

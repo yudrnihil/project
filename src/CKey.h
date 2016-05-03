@@ -31,6 +31,7 @@ class CKey {
 		uint16_t vref;             //average voltage when the key is not pressed
 		uint16_t threshold;        //threshold value to determine whether the key is pressed
 		uint16_t disabled;
+		uint8_t prev;
 	public:
 		/**
 		 * constructor for CKey. Each key has an id 0~23. The constructor
@@ -60,7 +61,8 @@ class CKey {
 		 * Determines whether the key is pressed. It is pressed if
 		 * getValue() < vref - threshold
 		 */
-		bool isPressed();
+//		bool isPressed();
+		uint8_t isPressed();
 
 		/**
 		 * sets a new threshold
