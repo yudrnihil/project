@@ -126,43 +126,21 @@ main(int argc, char* argv[])
 	  //This part tests whether each key is functional.
 	  //LED0 lights up if a key is touched.
 	  //Press key1 to move to the next key.
-//	  if (GPIO_ReadInputDataBit(GPIOE, GPIO_Pin_3) == 0){
-//		  while(GPIO_ReadInputDataBit(GPIOE, GPIO_Pin_3) == 0);
-//		  i++;
-//		  LCD_ShowNum(30, 120, i % 24, 2, 16);
-//		  keys[i % 24]->setMUX();
-//	  }
-//
-//
-//	  if(!keys[i % 24]->isPressed()){
-//		  GPIO_WriteBit(GPIOF, GPIO_Pin_9, Bit_SET);
-//	  }
-//	  else{
-//		  GPIO_WriteBit(GPIOF, GPIO_Pin_9, Bit_RESET);
-//	  }
-
-	 for (uint16_t i = 0; i < 24; i++){
-		  keys[i]->setMUX();
-		  delay_us(10);
-		  uint8_t value = keys[i]->isPressed();
-		  if(!value){
-			  LCD_Fill(30, 150 + i * 25, 200, 175 + i * 25, BLUE);
-			  flag[i]=0;
-
-		  }
-		  else{
-			  if(value == 1){
-			  LCD_Fill(30, 150 + i * 25, 200, 175 + i * 25, RED);
-			  }
-			  if(value == 2){
-				  LCD_Fill(30, 150 + i * 25, 200, 175 + i * 25, BLACK);
-			  }
-			  if(flag[i] == 0 )
-			  {Buf_Clear(i);flag[i]=1;}
-
-
-		  }
+	  if (GPIO_ReadInputDataBit(GPIOE, GPIO_Pin_3) == 0){
+		  while(GPIO_ReadInputDataBit(GPIOE, GPIO_Pin_3) == 0);
+		  i++;
+		  LCD_ShowNum(30, 120, i % 24, 2, 16);
+		  keys[i % 24]->setMUX();
 	  }
+
+
+	  if(!keys[i % 24]->isPressed()){
+		  GPIO_WriteBit(GPIOF, GPIO_Pin_9, Bit_SET);
+	  }
+	  else{
+		  GPIO_WriteBit(GPIOF, GPIO_Pin_9, Bit_RESET);
+	  }
+
 
     }
 

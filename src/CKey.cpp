@@ -126,35 +126,18 @@ void CKey::setThreshold(uint16_t threshold) {
 	this->threshold = threshold;
 }
 
-//bool CKey::isPressed(){
-//	if (disabled){
-//		disabled--;
-//		return true;
-//	}
-//	if (getValue() < vref - threshold){
-//		disabled = 10;
-//		return true;
-//	}
-//	return false;
-//	//return getValue() < vref - threshold;
-//}
-
-uint8_t CKey::isPressed(){
-	if(disabled){
+bool CKey::isPressed(){
+	if (disabled){
 		disabled--;
-		return prev;
+		return true;
 	}
-	uint16_t value = getValue();
-	if(value < vref - threshold){
-		disabled=10;
-		if(value < vref - threshold -180){
-			prev = 2;
-			return 2;
-		}
-		prev = 1;
-		return 1;
+	if (getValue() < vref - threshold){
+		disabled = 10;
+		return true;
 	}
-	return 0;
+	return false;
+	//return getValue() < vref - threshold;
 }
+
 
 
