@@ -9,6 +9,9 @@ C_SRCS += \
 CPP_SRCS += \
 ../src/CKey.cpp \
 ../src/ILI93xx.cpp \
+../src/SDCard.cpp \
+../src/UI.cpp \
+../src/WAVPlayer.cpp \
 ../src/dac.cpp \
 ../src/delay.cpp \
 ../src/key.cpp \
@@ -19,6 +22,9 @@ CPP_SRCS += \
 OBJS += \
 ./src/CKey.o \
 ./src/ILI93xx.o \
+./src/SDCard.o \
+./src/UI.o \
+./src/WAVPlayer.o \
 ./src/dac.o \
 ./src/delay.o \
 ./src/key.o \
@@ -33,6 +39,9 @@ C_DEPS += \
 CPP_DEPS += \
 ./src/CKey.d \
 ./src/ILI93xx.d \
+./src/SDCard.d \
+./src/UI.d \
+./src/WAVPlayer.d \
 ./src/dac.d \
 ./src/delay.d \
 ./src/key.d \

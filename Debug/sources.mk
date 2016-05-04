@@ -33,4 +33,6 @@ system/src/diag \
 system/src/cortexm \
 system/src/cmsis \
 src \
+src/fatfs/option \
+src/fatfs \
 
