@@ -18,6 +18,7 @@ int srt0=0,srt1=0,srt2=0;
 uint16_t note_decay[24]={337,320,302,295,269,253,238,225,213,200,189,179,168,159,150,142,134,126,119,112,106,100,94,89};
 int buf_sum = 0;
 int buf_inuse=1;
+extern uint8_t timbre;
 
 void Buf_Init(){
 	for(int i=0;i<3;++i)
@@ -32,7 +33,7 @@ void Buf_Clear(int note){
 	case 0:b=0;srt0=0;break;
 	case 1:j=0;srt1=0;break;
 	case 2:k=0;srt2=0;break;
-	}
+    }
 	buf_note[buf_inuse]=note;
 	(buf_inuse == 2)? buf_inuse = 0: buf_inuse++;
 
@@ -40,30 +41,97 @@ void Buf_Clear(int note){
 
 //calculate value for next interrupt
 uint16_t Next_Round(){
-
-	if(srt0)
-        if(b!=note_decay[buf_note[0]]-1){
-           buffer[0][b]=0.5 * (buffer[0][b]+buffer[0][b+1]);
-            	       }
-        else{
-	       buffer[0][b]=0.5 * (buffer[0][b]+buffer[0][0]);
-	    }
-	if(srt1)
-        if(j!=note_decay[buf_note[1]]-1){
-            	         buffer[1][j]=0.5 * (buffer[1][j]+buffer[1][j+1]);
-            	       }
-        else{
-	buffer[1][j]=0.5 * (buffer[1][j]+buffer[1][0]);
+	switch(timbre){
+		case 0:{
+			if(srt0){
+				if(b!=note_decay[buf_note[0]]-1){
+				   buffer[0][b]=0.5 * (buffer[0][b]+buffer[0][b+1]);
+				}
+				else{
+				   buffer[0][b]=0.5 * (buffer[0][b]+buffer[0][0]);
+				}
+			}
+			if(srt1){
+		        if(j!=note_decay[buf_note[1]]-1){
+		           buffer[1][j]=0.5 * (buffer[1][j]+buffer[1][j+1]);
+		        }
+		        else{
+			       buffer[1][j]=0.5 * (buffer[1][j]+buffer[1][0]);
+			    }
+			}
+			if(srt2){
+		        if(k!=note_decay[buf_note[2]]-1){
+		           buffer[2][k]=0.5 * (buffer[2][k]+buffer[2][k+1]);
+		        }
+		        else{
+			       buffer[2][k]=0.5 * (buffer[2][k]+buffer[2][0]);
+			    }
+			}
+			break;
+		}
+		case 1:{
+			if(srt0){
+				if(b!=0){
+					buffer[0][b]=0.5*(buffer[0][b]+buffer[0][b-1]);
+				}
+				else{
+					buffer[0][b]=0.5*(buffer[0][b]+buffer[0][note_decay[buf_note[0]]-1]);
+				}
+			}
+			if(srt1){
+				if(j!=0){
+					buffer[1][j]=0.5*(buffer[1][j]+buffer[1][j-1]);
+				}
+				else{
+					buffer[1][j]=0.5*(buffer[1][j]+buffer[1][note_decay[buf_note[1]]-1]);
+				}
+			}
+			if(srt2){
+				if(k!=0){
+					buffer[2][k]=0.5*(buffer[2][k]+buffer[2][k-1]);
+				}
+				else{
+					buffer[2][k]=0.5*(buffer[2][k]+buffer[2][note_decay[buf_note[2]]-1]);
+				}
+			}
+			break;
+		}
+		case 2:{
+			if(srt0){
+					buffer[0][b]=0.99*buffer[0][b]+20;
+			}
+			if(srt1){
+				buffer[1][j]=0.99*buffer[1][j]+20;
+			}
+			if(srt2){
+				buffer[2][k]=0.99*buffer[2][k]+20;
+			}
+			break;
+		}
 	}
 
-	if(srt2)
-        if(k!=note_decay[buf_note[2]]-1){
-            	         buffer[2][k]=0.5 * (buffer[2][k]+buffer[2][k+1]);
-            	       }
-        else{
-	buffer[2][k]=0.5 * (buffer[2][k]+buffer[2][0]);
-	}
-
+//	if(srt0)
+//        if(b!=note_decay[buf_note[0]]-1){
+//           buffer[0][b]=0.5 * (buffer[0][b]+buffer[0][b+1]);
+//            	       }
+//        else{
+//	       buffer[0][b]=0.5 * (buffer[0][b]+buffer[0][0]);
+//	    }
+//	if(srt1)
+//        if(j!=note_decay[buf_note[1]]-1){
+//            	         buffer[1][j]=0.5 * (buffer[1][j]+buffer[1][j+1]);
+//            	       }
+//        else{
+//	buffer[1][j]=0.5 * (buffer[1][j]+buffer[1][0]);
+//	}
+//
+//	if(srt2)
+//        if(k!=note_decay[buf_note[2]]-1){
+//            	         buffer[2][k]=0.5 * (buffer[2][k]+buffer[2][k+1]);
+//            	       }
+//        else{
+//	buffer[2][k]=0.5 * (buffer[2][k]+buffer[2][0]);
+//	}
 
 	buf_sum=buffer[1][j]+buffer[2][k]+buffer[0][b]-4000;
 	if(buf_sum < 0 ) buf_sum=2000;
