@@ -9,7 +9,7 @@
 #define UI_H_
 
 uint8_t modeSelect();
-
+uint8_t timbreSelect();
 
 
 #endif /* UI_H_ */
