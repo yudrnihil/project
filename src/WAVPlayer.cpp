@@ -9,6 +9,7 @@
 #include "delay.h"
 #include "fatfs/ff.h"
 #include "stm32f4xx_it.h"
+#include "lcd.h"
 
 /**
  * WAV Player
@@ -184,6 +185,7 @@ u8 wav_play_song(char* fname)
 						fillnum=wav_buffill(audiodev.dacbuf2,WAV_DAC_TX_DMA_BUFSIZE,wavctrl.bps);
 						audiodev.status=3<<0;
 
+						DMA_Reconfigure(wavctrl.nchannels);
 						DMA_Cmd(DMA1_Stream5, ENABLE);
 //					}
 //					else{
@@ -251,7 +253,7 @@ u8 wav_play_song(char* fname)
 					audiodev.status = 0;
 					TIM_Cmd(TIM6, DISABLE);
 					DMA_Cmd(DMA1_Stream5, DISABLE);
-					DMA_Cmd(DMA1_Stream6, DISABLE);
+					//DMA_Cmd(DMA1_Stream6, DISABLE);
 
 				}else res=0XFF; //err: cannot open file
 			}else res=0XFF; //err: wav file is not 8bit, not supported yet
@@ -289,10 +291,10 @@ void wavController(char* path){
 	audiodev.file=new FIL;
 	audiodev.dacbuf1 = new u8[512];
 	audiodev.dacbuf2 = new u8[512];
-	audiodev.dacbuf3 = new u8[512];
-	audiodev.dacbuf4 = new u8[512];
+//	audiodev.dacbuf3 = new u8[512];
+//	audiodev.dacbuf4 = new u8[512];
 	audiodev.tbuf = new u8[1024];
-	DAC_WAV_Init(audiodev.dacbuf1, audiodev.dacbuf2, audiodev.dacbuf3, audiodev.dacbuf4, 256);
+	DAC_WAV_Init(audiodev.dacbuf1, audiodev.dacbuf2, 256);
 
 	fno.lfsize = _MAX_LFN * 2 + 1;
 	fno.lfname = new char[fno.lfsize];
@@ -322,8 +324,8 @@ void wavController(char* path){
 	delete [] audiodev.tbuf;
 	delete [] audiodev.dacbuf1;
 	delete [] audiodev.dacbuf2;
-	delete [] audiodev.dacbuf3;
-	delete [] audiodev.dacbuf4;
+//	delete [] audiodev.dacbuf3;
+//	delete [] audiodev.dacbuf4;
 	delete audiodev.file;
 }
 
@@ -339,6 +341,7 @@ void DAC_WAV_Init(u8* buf0, u8* buf1, u16 num){
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM6 | RCC_APB1Periph_DAC, ENABLE);
 
+	//Channel1 init
 	//PA4 init
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AN;
 	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
@@ -388,11 +391,6 @@ void DAC_WAV_Init(u8* buf0, u8* buf1, u16 num){
 	DAC_Init(DAC_Channel_1, &DAC_InitStructure);
 	DAC_Cmd(DAC_Channel_1, ENABLE);
 	DAC_DMACmd(DAC_Channel_1, ENABLE);
-}
-
-void DAC_WAV_Init(u8* bufCh1_0, u8* bufCh1_1, u8* bufCh2_0, u8* bufCh2_1, u16 num){
-	//Channel 1 init
-	DAC_WAV_Init(bufCh1_0, bufCh1_1, num);
 
 	//Channel 2 init
 	//PA4 init
@@ -413,6 +411,29 @@ void DAC_WAV_Init(u8* bufCh1_0, u8* bufCh1_1, u8* bufCh2_0, u8* bufCh2_1, u16 nu
 	DAC_DMACmd(DAC_Channel_2, ENABLE);
 }
 
+//void DAC_WAV_Init(u8* bufCh1_0, u8* bufCh1_1, u8* bufCh2_0, u8* bufCh2_1, u16 num){
+//	//Channel 1 init
+//	DAC_WAV_Init(bufCh1_0, bufCh1_1, num);
+//
+//	//Channel 2 init
+//	//PA4 init
+//	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AN;
+//	GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
+//	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5;
+//	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+//	GPIO_InitStructure.GPIO_Speed = GPIO_Low_Speed;
+//	GPIO_Init(GPIOA, &GPIO_InitStructure);
+//
+//    //dac init
+//	DAC_InitStructure.DAC_Trigger = DAC_Trigger_T6_TRGO;
+//	DAC_InitStructure.DAC_WaveGeneration = DAC_WaveGeneration_None;
+//	DAC_InitStructure.DAC_OutputBuffer = DAC_OutputBuffer_Disable;
+//	DAC_InitStructure.DAC_LFSRUnmask_TriangleAmplitude = DAC_LFSRUnmask_Bit0;
+//	DAC_Init(DAC_Channel_2, &DAC_InitStructure);
+//	DAC_Cmd(DAC_Channel_2, ENABLE);
+//	DAC_DMACmd(DAC_Channel_2, ENABLE);
+//}
+
 /**
  * DMA1_Stream5_IRQHandler
  * called upon transfer completion
@@ -432,3 +453,20 @@ void DMA1_Stream5_IRQHandler(void){
 	}
 }
 
+void DMA_Reconfigure(uint8_t channel){
+	//DMA Init
+	//DMA_DeInit(DMA1_Stream5);
+	DMA_InitStructure.DMA_BufferSize = channel == 1 ? WAV_DAC_TX_DMA_BUFSIZE : WAV_DAC_TX_DMA_BUFSIZE/2;
+	DMA_InitStructure.DMA_MemoryDataSize = channel == 1 ? DMA_MemoryDataSize_Byte : DMA_MemoryDataSize_HalfWord;
+	DMA_InitStructure.DMA_PeripheralDataSize = channel == 1 ? DMA_PeripheralDataSize_Byte : DMA_PeripheralDataSize_HalfWord;
+	DMA_Cmd(DMA1_Stream5, DISABLE);
+	while (DMA1_Stream5->CR & DMA_SxCR_EN);
+	DMA_Init(DMA1_Stream5, &DMA_InitStructure);
+
+	//DMA_DoubleBufferModeConfig(DMA1_Stream5, (u32)buf1, DMA_Memory_0);
+	DMA_ITConfig(DMA1_Stream5, DMA_IT_TC, ENABLE);
+	DMA_DoubleBufferModeCmd(DMA1_Stream5, ENABLE);
+
+	DAC_DMACmd(DAC_Channel_1, ENABLE);
+	DAC_DMACmd(DAC_Channel_2, ENABLE);
+}

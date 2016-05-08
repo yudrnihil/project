@@ -102,6 +102,7 @@ u8 wav_play_song(char* fname);
 void DAC_WAV_Init(u8* buf0, u8* buf1, u16 num);
 void DAC_WAV_Init(u8* bufCh1_0, u8* bufCh1_1, u8* bufCh2_0, u8* bufCh2_1, u16 num);
 void wavController(char* path);
+void DMA_Reconfigure(uint8_t channel);
 #endif
 
 
