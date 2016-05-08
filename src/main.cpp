@@ -46,7 +46,8 @@
 static GPIO_InitTypeDef GPIO_InitStructure;
 CKey* keys[24];
 int i = 0;
-extern int flag[8]={0};
+int flag[24]={0};
+uint8_t timbre;
 
 u8 exf_getfree(char *drv,u32 *total,u32 *free)
 {
@@ -95,8 +96,8 @@ u8 mf_scan_files(char* path)
 #else
         	fn = fno.fname;
 #endif	                                              /* It is a file. */
-			LCD_ShowString(30, 250 + count*30, 200, 16, 16, path);//打印路径
-			LCD_ShowString(130, 250 + count*30, 200, 16, 16, fn);//打印文件名
+			//LCD_ShowString(30, 250 + count*30, 200, 16, 16, path);//打印路径
+			LCD_ShowString(50, 250 + count*30, 200, 16, 16, fn);//打印文件名
 			count++;
 		}
     }
@@ -151,33 +152,10 @@ main(int argc, char* argv[])
 
   // At this stage the system clock should have already been configured
   // at high speed.
-     // Buf_Clear(8);
-    //  LCD_Fill(30, 150 + 3 * 25, 200, 175 + 3* 25, RED);
-      //Buf_Clear(1);
 
-
-//      Buf_Clear(4);
-
-//      Buf_Clear(4);
-//      delay_ms(400);
-//      Buf_Clear(6);
-//      delay_ms(400);
-//      Buf_Clear(7);
-//      delay_ms(400);
-//      Buf_Clear(7);
-//
-//      delay_ms(200);
-//      Buf_Clear(7);
-//      delay_ms(520);
-//      Buf_Clear(4);
-//      delay_ms(375);
-//      Buf_Clear(4);
-//      delay_ms(350);
-
-
-
-  //LCD_Fill(30, 150 + 3 * 25, 200, 175 + 3* 25, RED);
-
+//	    	 DAC_Init();
+//	    	 Buf_Init();
+//	         Timer_Init(30,70);
 
 
      uint8_t mode = modeSelect();
@@ -186,39 +164,31 @@ main(int argc, char* argv[])
     	 Buf_Init();
          Timer_Init(30,70);
 
+         while(1){
+			 timbre = timbreSelect();
+			while(1){
+				for (uint16_t i = 0; i < 24; i++){
+				  keys[i]->setMUX();
+				  delay_us(10);
+				  if(!keys[i]->isPressed()){
+					  LCD_Fill(30, 150 + i * 25, 200, 175 + i * 25, BLUE);
+					  flag[i]=0;
 
-               Buf_Clear(4);
-               delay_ms(400);
-               Buf_Clear(6);
-               delay_ms(400);
-               Buf_Clear(7);
-               delay_ms(400);
-               Buf_Clear(7);
-
-               delay_ms(200);
-               Buf_Clear(7);
-               delay_ms(520);
-               Buf_Clear(4);
-               delay_ms(375);
-               Buf_Clear(4);
-               delay_ms(350);
-
-    	while(1){
-    		for (uint16_t i = 0; i < 24; i++){
-	  		  keys[i]->setMUX();
-	  		  delay_us(10);
-	  		  if(!keys[i]->isPressed()){
-	  			  LCD_Fill(30, 150 + i * 25, 200, 175 + i * 25, BLUE);
-	  			  flag[i]=0;
-
-	  		  }
-	  		  else{
-	  			  LCD_Fill(30, 150 + i * 25, 200, 175 + i * 25, RED);
-	  			  if(flag[i] == 0 )
-	  			  {Buf_Clear(23-i);flag[i]=1;}
-	  		  }
-    		}
-    	}
+				  }
+				  else{
+					  LCD_Fill(30, 150 + i * 25, 200, 175 + i * 25, RED);
+					  if(flag[i] == 0 )
+					  {Buf_Clear(23-i);flag[i]=1;}
+				  }
+				}
+				if(KEY_Scan()!=0){
+					LCD_Clear(WHITE);
+					LCD_ShowString(30,40,200,16,16,"Hello World");
+					LCD_ShowNum(30, 120, 0, 2, 16);
+					break;
+				}
+			}
+         }
      }
      else{
     	 //SD Card init
@@ -276,7 +246,7 @@ main(int argc, char* argv[])
 //	  		  else{
 //	  			  LCD_Fill(30, 150 + i * 25, 200, 175 + i * 25, RED);
 //	  			  if(flag[i] == 0 )
-//	  			  {Buf_Clear(i);flag[i]=1;}
+//	  			  {Buf_Clear(23-i);flag[i]=1;}
 //
 //
 //	  		  }
