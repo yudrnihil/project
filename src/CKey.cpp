@@ -59,7 +59,7 @@ CKey::CKey(uint8_t id):
 		threshold = 200;//200
 	}
 	else{
-		threshold = 800;//700
+		threshold = 700;//700
 	}
 	setMUX();
 	calibrate();
