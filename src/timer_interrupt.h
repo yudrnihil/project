@@ -11,6 +11,4 @@
 #include "stm32f4xx_tim.h"
 void Timer_Init(uint16_t arr,uint16_t psc);
 
-
-
 #endif /* TIMER_INTERRUPT_H_ */

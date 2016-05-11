@@ -46,8 +46,8 @@ uint8_t modeSelect(){
 
 uint8_t timbreSelect(){
 	//0: piano
-	//1: nylon
-	//2: stone
+	//1: stone
+	//2: space
 	int8_t cur = 0;
 	LCD_ShowString(30, 180, 200, 16, 16, "Piano");
 	LCD_ShowString(30, 210, 200, 16, 16, "Stone");

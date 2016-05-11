@@ -44,66 +44,9 @@
 #pragma GCC diagnostic ignored "-Wreturn-type"
 
 static GPIO_InitTypeDef GPIO_InitStructure;
-CKey* keys[24];
-int i = 0;
-int flag[24]={0};
+CKey* keys[24]; //piano keys
+int flag[24]={0}; //key pressed flag
 uint8_t timbre;
-
-u8 exf_getfree(char *drv,u32 *total,u32 *free)
-{
-	FATFS *fs1;
-	u8 res;
-    u32 fre_clust=0, fre_sect=0, tot_sect=0;
-    //得到磁盘信息及空闲簇数量
-    res =(u32)f_getfree((const TCHAR*)drv, (DWORD*)&fre_clust, &fs1);
-    if(res==0)
-	{
-	    tot_sect=(fs1->n_fatent-2)*fs1->csize;	//得到总扇区数
-	    fre_sect=fre_clust*fs1->csize;			//得到空闲扇区数
-#if _MAX_SS!=512				  				//扇区大小不是512字节,则转换为512字节
-		tot_sect*=fs1->ssize/512;
-		fre_sect*=fs1->ssize/512;
-#endif
-		*total=tot_sect>>1;	//单位为KB
-		*free=fre_sect>>1;	//单位为KB
- 	}
-	return res;
-}
-
-
-u8 mf_scan_files(char* path)
-{
-	FRESULT res;
-	FILINFO fno;
-	DIR dir;
-	u16 count = 0;;
-    char *fn;   /* This function is assuming non-Unicode cfg. */
-#if _USE_LFN
- 	fno.lfsize = _MAX_LFN * 2 + 1;
-	fno.lfname = new char[fno.lfsize];
-#endif
-
-    res = f_opendir(&dir,(const TCHAR*)path); //打开一个目录
-    if (res == FR_OK)
-	{
-		while(1)
-		{
-	        res = f_readdir(&dir, &fno);                   //读取目录下的一个文件
-	        if (res != FR_OK || fno.fname[0] == 0) break;  //错误了/到末尾了,退出
-	        //if (fileinfo.fname[0] == '.') continue;             //忽略上级目录
-#if _USE_LFN
-        	fn = *fno.lfname ? fno.lfname : fno.fname;
-#else
-        	fn = fno.fname;
-#endif	                                              /* It is a file. */
-			//LCD_ShowString(30, 250 + count*30, 200, 16, 16, path);//打印路径
-			LCD_ShowString(50, 250 + count*30, 200, 16, 16, fn);//打印文件名
-			count++;
-		}
-    }
-    f_closedir(&dir);
-    return res;
-}
 
 int
 main(int argc, char* argv[])
@@ -137,36 +80,24 @@ main(int argc, char* argv[])
 	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
 	GPIO_InitStructure.GPIO_Speed = GPIO_Low_Speed;
 	GPIO_Init(GPIOF, &GPIO_InitStructure);
-	//Button key1 init
-//	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
-//	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_3;
-//	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_UP;
-//	GPIO_Init(GPIOE, &GPIO_InitStructure);
-
-	//
-	//	GPIO_WriteBit(GPIOF, GPIO_Pin_10, Bit_RESET);
-	//	GPIO_WriteBit(GPIOF, GPIO_Pin_9, Bit_SET);
-
-
-
 
   // At this stage the system clock should have already been configured
   // at high speed.
 
-//	    	 DAC_Init();
-//	    	 Buf_Init();
-//	         Timer_Init(30,70);
 
-
+	//select mode
      uint8_t mode = modeSelect();
+     //piano mode
      if (mode == 0){
     	 DAC_Init();
     	 Buf_Init();
          Timer_Init(30,70);
 
          while(1){
+        	 //select timbre
 			 timbre = timbreSelect();
 			while(1){
+				//24 keys loop
 				for (uint16_t i = 0; i < 24; i++){
 				  keys[i]->setMUX();
 				  delay_us(10);
@@ -181,6 +112,7 @@ main(int argc, char* argv[])
 					  {Buf_Clear(23-i);flag[i]=1;}
 				  }
 				}
+				//change a timbre
 				if(KEY_Scan()!=0){
 					LCD_Clear(WHITE);
 					LCD_ShowString(30,40,200,16,16,"Hello World");
@@ -190,6 +122,7 @@ main(int argc, char* argv[])
 			}
          }
      }
+     //WAV player mode
      else{
     	 //SD Card init
     	 u32 sd_size;
@@ -207,10 +140,9 @@ main(int argc, char* argv[])
     	 LCD_ShowString(30,150,200,16,16,"FATFS OK!");
     	 LCD_ShowString(30,170,200,16,16,"SD Total Size:     MB");
     	 LCD_ShowString(30,190,200,16,16,"SD  Free Size:     MB");
-    	 LCD_ShowNum(30+8*14,170,total>>10,5,16);				//显示SD卡总容量 MB
-    	 LCD_ShowNum(30+8*14,190,free>>10,5,16);					//显示SD卡剩余容量 MB
+    	 LCD_ShowNum(30+8*14,170,total>>10,5,16);				//SD card total size
+    	 LCD_ShowNum(30+8*14,190,free>>10,5,16);					//SD card free size
     	 mf_scan_files("0:");
-    	 //wav_play_song("0:/fox.wav");
     	 wavController("0:");
      }
   // Infinite loop
@@ -233,27 +165,6 @@ main(int argc, char* argv[])
 //	  else{
 //		  GPIO_WriteBit(GPIOF, GPIO_Pin_9, Bit_RESET);
 //	  }
-
-
-//	  for (uint16_t i = 0; i < 24; i++){
-//	  		  keys[i]->setMUX();
-//	  		  delay_us(10);
-//	  		  if(!keys[i]->isPressed()){
-//	  			  LCD_Fill(30, 150 + i * 25, 200, 175 + i * 25, BLUE);
-//	  			  flag[i]=0;
-//
-//	  		  }
-//	  		  else{
-//	  			  LCD_Fill(30, 150 + i * 25, 200, 175 + i * 25, RED);
-//	  			  if(flag[i] == 0 )
-//	  			  {Buf_Clear(23-i);flag[i]=1;}
-//
-//
-//	  		  }
-//	  }
-
-
-
     }
 
 }
